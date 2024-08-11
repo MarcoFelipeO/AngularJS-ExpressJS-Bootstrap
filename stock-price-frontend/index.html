@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Api Markito</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Estilo para el rectángulo fijo a la izquierda */
+        .stock-card-container {
+            position: fixed; /* Mantiene el elemento fijo en la pantalla */
+            top: 20px; /* Espacio desde la parte superior */
+            left: 20px; /* Espacio desde la parte izquierda */
+            width: 400px; /* Ajusta el ancho según sea necesario */
+            height: calc(100vh - 40px - 100px); /* Ocupa toda la altura visible menos los márgenes superior e inferior, dejando espacio para el rectángulo inferior */
+            overflow-y: auto; /* Permite el desplazamiento vertical */
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #007bff; /* Fondo azul */
+            color: #fff; /* Color del texto */
+        }
+
+        /* Estilo para el rectángulo horizontal a la derecha */
+        .right-rectangle {
+            position: fixed; /* Mantiene el elemento fijo en la pantalla */
+            top: 20px; /* Espacio desde la parte superior */
+            right: 20px; /* Espacio desde la parte derecha */
+            width: calc(100% - 440px - 20px); /* Ancho ajustado para ocupar el espacio restante menos el ancho del rectángulo izquierdo y márgenes */
+            height: 40vh; /* Ajusta la altura para ser menos de la mitad de la pantalla */
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #007bff; /* Fondo más oscuro */
+            color: #fff; /* Color del texto */
+            overflow-y: auto; /* Permite el desplazamiento vertical */
+        }
+
+        /* Estilo para el rectángulo horizontal en la parte inferior */
+        .bottom-rectangle {
+            position: fixed; /* Mantiene el elemento fijo en la pantalla */
+            bottom: 140px; /* Espacio desde la parte inferior */
+            left: 440px; /* Ajusta la posición izquierda para evitar el solapamiento con el rectángulo fijo a la izquierda */
+            width: calc(100% - 420px - 40px); /* Ajusta el ancho para ocupar el espacio restante menos los márgenes y el ancho del rectángulo fijo a la izquierda */
+            height: 40vh; /* Ajusta la altura para ser menos de la mitad de la pantalla */
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #007bff; /* Fondo aún más oscuro */
+            color: #fff; /* Color del texto */
+            overflow-y: auto; /* Permite el desplazamiento vertical */
+        }
+
+        .container {
+            margin-left: 30px; /* Da un margen suficiente para no sobreponerse al rectángulo fijo a la izquierda */
+            margin-right: calc(100% - 440px - 40px); /* Da un margen suficiente para no sobreponerse al rectángulo horizontal a la derecha */
+            margin-bottom: 100px; /* Da espacio para el rectángulo horizontal inferior */
+        }
+
+        .stock-card {
+            background-color: #0056b3; /* Fondo más oscuro para las tarjetas de stock */
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+            cursor: pointer; /* Muestra un cursor de mano para indicar que es clicable */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid white;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #004080; /* Fondo oscuro para los encabezados de la tabla */
+            color: #fff;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Rectángulo fijo a la izquierda -->
+    <div class="stock-card-container">
+        <h2>Nemo Symbols</h2>
+        <div id="stock-data">
+            <!-- Los datos de stock se cargarán aquí -->
+        </div>
+    </div>
+
+    <!-- Rectángulo horizontal a la derecha -->
+    <div class="right-rectangle">
+        <h2>Historical Prices</h2>
+        <table id="historical-table">
+            <thead>
+                <tr>
+                    <th>Price</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Los datos históricos se cargarán aquí -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Rectángulo horizontal en la parte inferior -->
+    <div class="bottom-rectangle">
+        <canvas id="price-chart" width="400" height="200"></canvas>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  <!--LIBRERIA DE GRAFICO-->
+
+    <script>
+        let currentChart = null; // Variable para almacenar el gráfico actual
+      
+        async function fetchStockData() {
+          try {
+            const response = await fetch('http://localhost:9090/api/symbols');
+            if (!response.ok) {
+              throw new Error('La respuesta de la red no fue correcta');
+            }
+            const data = await response.json();
+      
+            const formattedData = data.map(item => `
+              <div class="stock-card" data-symbol="${item.symbol}">
+                <h3>${item.symbol}</h3>
+                <p>Name: ${item.name}</p>
+                <p>Price: ${item.price}</p>
+              </div>
+            `).join('');
+      
+            document.getElementById('stock-data').innerHTML = formattedData;
+          } catch (error) {
+            console.error('Fetch error:', error);
+          }
+        }
+      
+        async function fetchHistoricalData(symbol) {
+    try {
+        console.log('Obteniendo datos históricos para el símbolo:', symbol); // Depuración
+        const response = await fetch(`http://localhost:9090/api/historical?symbol=${symbol}`);
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        console.log('Historical data:', data); // Depuración
+
+        const stockData = data.find(stock => stock.symbol === symbol);
+
+        if (!stockData) {
+            document.querySelector('#historical-table tbody').innerHTML = '<tr><td colspan="2">No data available</td></tr>';
+            return;
+        }
+
+        // Formatear los datos históricos para la tabla
+        const formattedData = stockData.historical.map(entry => `
+            <tr>
+                <td>${entry.date}</td>
+                <td>${entry.close}</td>
+            </tr>
+        `).join('');
+
+        document.querySelector('#historical-table tbody').innerHTML = formattedData;
+
+        // Borra el gráfico actual si existe
+        if (currentChart) {
+            currentChart.destroy();
+        }
+
+        // Dibujar gráfico
+        const ctx = document.getElementById('price-chart').getContext('2d');
+        currentChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: stockData.historical.map(entry => entry.date),
+                datasets: [{
+                    label: 'Price',
+                    data: stockData.historical.map(entry => entry.close),
+                    borderColor: 'white',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: {
+                            color: 'white', // Color del texto del eje x
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: 'white' // Color del título del eje x
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            color: 'white', // Color del texto del eje y
+                        },
+                        title: {
+                            display: true,
+                            text: 'Price',
+                            color: 'white' // Color del título del eje y
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white' // Color del texto de la leyenda
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw}`;
+                            }
+                        },
+                        titleColor: 'white', // Color del título del tooltip
+                        bodyColor: 'white' // Color del cuerpo del tooltip
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Fetch error:', error);
+    }
+}
+      
+        document.addEventListener('DOMContentLoaded', () => {
+          fetchStockData();
+      
+          document.getElementById('stock-data').addEventListener('click', event => {
+            const symbol = event.target.closest('.stock-card')?.dataset.symbol;
+            if (symbol) {
+              fetchHistoricalData(symbol);
+            }
+          });
+        });
+      </script>
+      
+</body>
+</html>
